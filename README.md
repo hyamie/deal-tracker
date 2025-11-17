@@ -1,104 +1,71 @@
 # Deal Tracker
 
-A powerful price tracking app that monitors your favorite products across multiple retailers and alerts you when prices drop or reach your target price.
+Track product prices across multiple retailers and get notified when deals go live!
 
 ## Features
 
-- Multi-Retailer Support: Track products from Amazon, Best Buy, Newegg, B&H Photo, Microcenter, and more
-- Price Alerts: Get email notifications when prices drop or reach your target
-- Alternative Vendor Search: Automatically finds better deals from other retailers
-- Price History: View price trends over time
-- Manual & Automatic Checks: Check prices on demand or automatically via daily cron jobs
-- Beautiful UI: Modern, responsive design with Tailwind CSS
+- Track products from Amazon, Best Buy, Newegg, B&H Photo, Microcenter
+- Manual price checking on demand
+- Automatic daily price checks via Vercel cron jobs
+- Find alternative vendors with better prices
+- Price history tracking
+- Beautiful responsive UI
 
-## Tech Stack
+## Quick Start
 
-- Frontend: Next.js 15, React, TypeScript, Tailwind CSS
-- Backend: Next.js API Routes
-- Database: Supabase (PostgreSQL)
-- Price Scraping: Cheerio, Axios
-- Email: Resend
-- Deployment: Vercel (with cron jobs)
+### 1. Set Up Supabase Database
 
-## Setup Instructions
+1. Go to https://supabase.com and create a free account
+2. Create a new project
+3. Go to SQL Editor and run the schema from `supabase-schema.sql`
+4. Get your credentials from Settings > API
 
-### 1. Install Dependencies
-
-```bash
-cd C:/ClaudeAgents/projects/deal-tracker
-npm install
-```
-
-### 2. Set Up Supabase
-
-1. Go to supabase.com and create a new project (free tier)
-2. Once created, go to Settings > API to get your credentials
-3. Go to SQL Editor and run the schema from supabase-schema.sql
-
-### 3. Set Up Resend (Email)
-
-1. Go to resend.com and sign up (free tier: 3k emails/month)
-2. Create an API key
-3. Add your domain or use their test domain for development
-
-### 4. Configure Environment Variables
-
-Create .env.local file:
+### 2. Configure Environment Variables
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Edit .env.local with your credentials
+Edit `.env.local`:
 
-### 5. Run Development Server
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+NEXT_PUBLIC_USER_EMAIL=your_email@example.com
+CRON_SECRET=your_random_string
+```
+
+### 3. Install and Run
 
 ```bash
+npm install
 npm run dev
 ```
 
 Open http://localhost:3000
 
-### 6. Deploy to Vercel
+### 4. Deploy to Vercel
 
-1. Push your code to GitHub
-2. Go to vercel.com and import your repository
-3. Add all environment variables from .env.local
+```bash
+# Push to GitHub
+git remote add origin https://github.com/yourusername/deal-tracker.git
+git branch -M main
+git push -u origin main
+```
+
+Then:
+1. Go to https://vercel.com
+2. Import your repository
+3. Add environment variables
 4. Deploy!
 
-The cron job will automatically run daily at 9 AM to check all prices.
+## Tech Stack
 
-## Usage
+- Next.js 15 + TypeScript
+- Tailwind CSS
+- Supabase (PostgreSQL)
+- Vercel (hosting + cron jobs)
 
-### Adding Products
+## License
 
-1. Click "Add New Product"
-2. Enter product name, URL, and optional target price
-3. The app will scrape the current price and find alternative vendors
-
-### Checking Prices
-
-- Single Product: Click "Check Price" on any product card
-- All Products: Click "Check All Prices" button
-- Automatic: Cron job runs daily at 9 AM
-
-### Email Alerts
-
-You'll receive emails when:
-- Price drops below the previous price
-- Price reaches or goes below your target price
-- Better deals are found at alternative vendors
-
-## Supported Retailers
-
-- Amazon
-- Best Buy
-- Newegg
-- B&H Photo Video
-- Microcenter
-- Generic sites with meta tags
-
-Plus deal aggregators:
-- Slickdeals
-- DealNews
-- Google Shopping
+MIT
