@@ -5,13 +5,13 @@ import { scrapePrice } from '@/lib/scrapers/price-scraper'
 import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
 import { Database } from '@/lib/database.types'
 
-type Product = Database['deal_tracker']['Tables']['products']['Row']
+type Product = Database['public']['Tables']['products']['Row']
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { productId } = body
-    const userEmail = request.headers.get('x-user-email') || process.env.USER_EMAIL
+    const userEmail = request.headers.get('x-user-email') || process.env.NEXT_PUBLIC_USER_EMAIL
 
     if (!userEmail) {
       return NextResponse.json({ error: 'User email required' }, { status: 400 })
@@ -164,7 +164,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const userEmail = process.env.USER_EMAIL
+    const userEmail = process.env.NEXT_PUBLIC_USER_EMAIL
     if (!userEmail) {
       return NextResponse.json({ error: 'User email not configured' }, { status: 500 })
     }

@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export interface Database {
-  deal_tracker: {
+  public: {
     Tables: {
       products: {
         Row: {
