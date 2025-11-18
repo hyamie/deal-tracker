@@ -10,13 +10,19 @@ export interface PriceData {
 
 export async function scrapePrice(url: string): Promise<PriceData> {
   try {
-    const response = await axios.get(url, {
+    // Use ScraperAPI if available, otherwise fall back to direct scraping
+    const scraperApiKey = process.env.SCRAPER_API_KEY
+    const targetUrl = scraperApiKey
+      ? `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(url)}&render=true`
+      : url
+
+    const response = await axios.get(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
-      timeout: 10000,
+      timeout: 30000,
     })
 
     const $ = cheerio.load(response.data)
