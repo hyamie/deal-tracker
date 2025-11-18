@@ -52,7 +52,7 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
         )}
 
         <div className="flex-1">
-          <h3 className="font-bold text-lg mb-1">{product.name}</h3>
+          <h3 className="font-bold text-xl mb-1 text-gray-900">{product.name}</h3>
           <p className="text-sm text-gray-600 mb-2">{product.retailer}</p>
 
           <div className="flex items-center gap-4 mb-3">
