@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Database } from '@/lib/database.types'
 
-type Product = Database['public']['Tables']['products']['Row']
+type Product = Database['deal_tracker']['Tables']['products']['Row']
 
 interface ProductCardProps {
   product: Product
