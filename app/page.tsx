@@ -5,7 +5,7 @@ import ProductCard from '@/components/ProductCard'
 import AddProductForm from '@/components/AddProductForm'
 import { Database } from '@/lib/database.types'
 
-type Product = Database['deal_tracker']['Tables']['products']['Row']
+type Product = Database['public']['Tables']['products']['Row']
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
