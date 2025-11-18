@@ -7,6 +7,6 @@ const supabaseSchema = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA || 'public'
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   db: {
-    schema: supabaseSchema as any
+    schema: supabaseSchema
   }
 })

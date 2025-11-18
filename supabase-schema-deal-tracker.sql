@@ -1,3 +1,6 @@
+-- Create schema if it doesn't exist
+CREATE SCHEMA IF NOT EXISTS deal_tracker;
+
 -- Set search path to deal_tracker schema
 SET search_path TO deal_tracker;
 
