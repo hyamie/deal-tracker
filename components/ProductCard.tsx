@@ -71,7 +71,7 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
                     type="number"
                     value={targetPrice}
                     onChange={(e) => setTargetPrice(e.target.value)}
-                    className="border rounded px-2 py-1 w-24"
+                    className="border rounded px-2 py-1 w-24 text-gray-900 bg-white"
                     placeholder="0.00"
                     step="0.01"
                   />

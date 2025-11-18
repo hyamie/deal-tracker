@@ -59,7 +59,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
             placeholder="e.g., NVIDIA RTX 4090"
           />
         </div>
@@ -73,7 +73,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             required
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
             placeholder="https://www.amazon.com/..."
           />
           <p className="text-xs text-gray-500 mt-1">
@@ -91,11 +91,11 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
             onChange={(e) => setTargetPrice(e.target.value)}
             step="0.01"
             min="0"
-            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
             placeholder="0.00"
           />
           <p className="text-xs text-gray-500 mt-1">
-            You'll get an email alert when the price drops to or below this amount
+            Visual indicator when the price drops to or below this amount
           </p>
         </div>
 
@@ -111,7 +111,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-semibold"
+            className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 font-semibold text-gray-700"
           >
             Cancel
           </button>
