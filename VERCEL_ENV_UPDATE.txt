@@ -1,0 +1,21 @@
+==============================================================
+VERCEL ENVIRONMENT VARIABLES TO UPDATE
+==============================================================
+
+Go to: https://vercel.com/mike-hyams-projects/deal-tracker/settings/environment-variables
+
+UPDATE THESE TWO VARIABLES:
+
+1. NEXT_PUBLIC_SUPABASE_ANON_KEY
+   New Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzanZjeXRid2FuaW9ucnR2cGxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNjgxMDIsImV4cCI6MjA3ODc0NDEwMn0.q1W__SM-pHCAkYAMBKbxDPTyeXxCHBCBn1T8Spb4hAE
+
+2. NEXT_PUBLIC_USER_EMAIL  
+   New Value: mikehyamsjr@gmail.com
+
+VERIFY THESE ARE CORRECT:
+- NEXT_PUBLIC_SUPABASE_URL: https://isjvcytbwanionrtvplq.supabase.co
+- NEXT_PUBLIC_SUPABASE_SCHEMA: deal_tracker
+- CRON_SECRET: deal-tracker-cron-secret-2025
+
+After updating, trigger a redeploy from Vercel dashboard.
+==============================================================

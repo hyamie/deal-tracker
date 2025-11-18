@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ product })
   } catch (error) {
     console.error('Error creating product:', error)
-    return NextResponse.json({ error: 'Failed to create product', details: error?.message || "Unknown error" }, { status: 500  }
+    return NextResponse.json({ error: 'Failed to create product', details: error?.message || "Unknown error" }, { status: 500 })
   }
 }
 
