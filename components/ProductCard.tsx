@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Database } from '@/lib/database.types'
+import { supabase } from '@/lib/supabase'
 
 type Product = Database['public']['Tables']['products']['Row']
+type AlternativeDeal = Database['public']['Tables']['alternative_deals']['Row']
 
 interface ProductCardProps {
   product: Product
@@ -16,6 +18,8 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
   const [isEditing, setIsEditing] = useState(false)
   const [targetPrice, setTargetPrice] = useState(product.target_price?.toString() || '')
   const [isChecking, setIsChecking] = useState(false)
+  const [alternatives, setAlternatives] = useState<AlternativeDeal[]>([])
+  const [showAlternatives, setShowAlternatives] = useState(false)
 
   const handleSaveTarget = () => {
     const price = targetPrice ? parseFloat(targetPrice) : null
@@ -23,10 +27,29 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
     setIsEditing(false)
   }
 
+  useEffect(() => {
+    fetchAlternatives()
+  }, [product.id])
+
+  const fetchAlternatives = async () => {
+    const { data } = await supabase
+      .from('alternative_deals')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('price', { ascending: true })
+      .limit(5)
+
+    if (data) {
+      setAlternatives(data)
+    }
+  }
+
   const handleCheck = async () => {
     setIsChecking(true)
     await onCheck(product.id)
     setIsChecking(false)
+    // Refresh alternatives after checking
+    await fetchAlternatives()
   }
 
   const priceStatus = () => {
@@ -134,6 +157,66 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
           {status === 'good' && (
             <div className="mt-3 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
               ✅ Target price reached!
+            </div>
+          )}
+
+          {/* Alternative Deals Section */}
+          {alternatives.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowAlternatives(!showAlternatives)}
+                className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-2"
+              >
+                {showAlternatives ? '▼' : '▶'}
+                {alternatives.length} Alternative{alternatives.length !== 1 ? 's' : ''} Found
+                {alternatives[0].price < (product.current_price || Infinity) && (
+                  <span className="text-green-600 font-bold">💰 Better price available!</span>
+                )}
+              </button>
+
+              {showAlternatives && (
+                <div className="mt-3 space-y-2">
+                  {alternatives.map((alt, index) => (
+                    <div
+                      key={alt.id}
+                      className={`flex items-center justify-between p-3 rounded border ${
+                        alt.price < (product.current_price || Infinity)
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          {index === 0 && alt.price < (product.current_price || Infinity) && (
+                            <span className="text-xs bg-green-500 text-white px-2 py-1 rounded font-bold">
+                              BEST DEAL
+                            </span>
+                          )}
+                          <span className="font-semibold text-gray-900">{alt.retailer}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-2xl font-bold text-purple-600">
+                            ${alt.price.toFixed(2)}
+                          </span>
+                          {product.current_price && alt.price < product.current_price && (
+                            <span className="text-sm text-green-600 font-semibold">
+                              Save ${(product.current_price - alt.price).toFixed(2)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <a
+                        href={alt.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm font-semibold"
+                      >
+                        View Deal →
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
