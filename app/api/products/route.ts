@@ -1,8 +1,12 @@
-// @ts-nocheck
+// @ts-nocheck - Known Supabase TypeScript bug: .insert()/.update() parameters incorrectly inferred as 'never'
+// See: https://github.com/supabase/supabase-js/issues/743
+// TODO: Remove when Supabase fixes type inference for .insert()/.update() with public schema
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { scrapePrice, getRetailerName } from '@/lib/scrapers/price-scraper'
 import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
+import type { ProductInsert, CreateProductRequest } from '@/lib/types'
 
 // GET all products
 export async function GET(request: NextRequest) {
@@ -31,7 +35,7 @@ export async function GET(request: NextRequest) {
 // POST new product
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    const body = await request.json() as CreateProductRequest
     const { name, url, targetPrice } = body
     const userEmail = request.headers.get('x-user-email') || process.env.NEXT_PUBLIC_USER_EMAIL
 
@@ -51,19 +55,21 @@ export async function POST(request: NextRequest) {
     const retailer = getRetailerName(url)
 
     // Insert product
+    const productData: ProductInsert = {
+      name,
+      url,
+      current_price: priceData.price,
+      target_price: targetPrice || null,
+      image_url: priceData.imageUrl,
+      retailer,
+      in_stock: priceData.inStock,
+      last_checked: new Date().toISOString(),
+      user_email: userEmail,
+    }
+
     const { data: product, error: insertError } = await supabase
       .from('products')
-      .insert({
-        name,
-        url,
-        current_price: priceData.price,
-        target_price: targetPrice || null,
-        image_url: priceData.imageUrl,
-        retailer,
-        in_stock: priceData.inStock,
-        last_checked: new Date().toISOString(),
-        user_email: userEmail,
-      })
+      .insert(productData)
       .select()
       .single()
 
@@ -99,7 +105,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ product })
   } catch (error) {
     console.error('Error creating product:', error)
-    return NextResponse.json({ error: 'Failed to create product', details: error?.message || "Unknown error" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    return NextResponse.json({ error: 'Failed to create product', details: errorMessage }, { status: 500 })
   }
 }
 

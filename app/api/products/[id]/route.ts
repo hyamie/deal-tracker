@@ -1,6 +1,10 @@
-// @ts-nocheck
+// @ts-nocheck - Known Supabase TypeScript bug: .update() parameter incorrectly inferred as 'never'
+// See: https://github.com/supabase/supabase-js/issues/743
+// TODO: Remove when Supabase fixes type inference for .update() with public schema
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import type { Product, PriceHistory, AlternativeDeal, ProductUpdate } from '@/lib/types'
 
 // GET single product with history and alternatives
 export async function GET(
@@ -55,7 +59,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const body = await request.json()
+    const body = await request.json() as ProductUpdate
 
     const { data: product, error } = await supabase
       .from('products')

@@ -1,11 +1,12 @@
-// @ts-nocheck
+// @ts-nocheck - Known Supabase TypeScript bug: .update() parameter incorrectly inferred as 'never'
+// See: https://github.com/supabase/supabase-js/issues/743
+// TODO: Remove when Supabase fixes type inference for .update() with public schema
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { scrapePrice } from '@/lib/scrapers/price-scraper'
 import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
-import { Database } from '@/lib/database.types'
-
-type Product = Database['public']['Tables']['products']['Row']
+import type { Product, ProductUpdate, ProductCheckResult, AlternativeVendor } from '@/lib/types'
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,14 +52,16 @@ async function checkSingleProduct(productId: string, userEmail: string) {
   const oldPrice = product.current_price
 
   // Update product
-  await supabase
+  const { error: updateError } = await supabase
     .from('products')
     .update({
       current_price: priceData.price,
       in_stock: priceData.inStock,
       last_checked: new Date().toISOString(),
-    } as any)
+    })
     .eq('id', productId)
+
+  if (updateError) throw updateError
 
   // Record price in history
   if (priceData.price) {
@@ -113,7 +116,7 @@ async function checkSingleProduct(productId: string, userEmail: string) {
 
   // Email alerts removed - price changes will show in UI
 
-  return {
+  const result: ProductCheckResult = {
     product: {
       ...product,
       current_price: priceData.price,
@@ -121,8 +124,10 @@ async function checkSingleProduct(productId: string, userEmail: string) {
     },
     priceChanged: shouldAlert,
     targetReached,
-    alternatives: alternatives.slice(0, 5),
+    alternatives: alternatives.slice(0, 5) as AlternativeVendor[],
   }
+
+  return result
 }
 
 async function checkAllProducts(userEmail: string) {

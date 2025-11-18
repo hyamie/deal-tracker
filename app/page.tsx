@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react'
 import ProductCard from '@/components/ProductCard'
 import AddProductForm from '@/components/AddProductForm'
-import { Database } from '@/lib/database.types'
-
-type Product = Database['deal_tracker']['Tables']['products']['Row']
+import type { Product } from '@/lib/types'
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([])
