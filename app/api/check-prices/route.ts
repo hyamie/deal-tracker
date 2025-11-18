@@ -5,7 +5,7 @@ import { scrapePrice } from '@/lib/scrapers/price-scraper'
 import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
 import { Database } from '@/lib/database.types'
 
-type Product = Database['public']['Tables']['products']['Row']
+type Product = Database['deal_tracker']['Tables']['products']['Row']
 
 export async function POST(request: NextRequest) {
   try {

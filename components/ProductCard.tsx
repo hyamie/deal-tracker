@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { Database } from '@/lib/database.types'
 import { supabase } from '@/lib/supabase'
 
-type Product = Database['public']['Tables']['products']['Row']
-type AlternativeDeal = Database['public']['Tables']['alternative_deals']['Row']
+type Product = Database['deal_tracker']['Tables']['products']['Row']
+type AlternativeDeal = Database['deal_tracker']['Tables']['alternative_deals']['Row']
 
 interface ProductCardProps {
   product: Product
