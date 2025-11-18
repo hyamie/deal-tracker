@@ -76,15 +76,21 @@ async function checkSingleProduct(productId: string, userEmail: string) {
   const targetReached = product.target_price && priceData.price && priceData.price <= product.target_price
 
   // Search for alternatives
+  console.log(`Searching for alternatives for product: ${product.name}`)
   const alternatives = await searchAlternativeVendors(product.name, product.url)
+  console.log(`Found ${alternatives.length} alternatives:`, alternatives.map(a => `${a.retailer}: $${a.price}`))
 
   // Save alternatives
   if (alternatives.length > 0) {
     // Delete old alternatives
-    await supabase
+    const { error: deleteError } = await supabase
       .from('alternative_deals')
       .delete()
       .eq('product_id', productId)
+
+    if (deleteError) {
+      console.error('Error deleting old alternatives:', deleteError)
+    }
 
     // Insert new alternatives
     const alternativeRecords = alternatives.map(alt => ({
@@ -94,7 +100,15 @@ async function checkSingleProduct(productId: string, userEmail: string) {
       url: alt.url,
     }))
 
-    await supabase.from('alternative_deals').insert(alternativeRecords)
+    const { error: insertError } = await supabase.from('alternative_deals').insert(alternativeRecords)
+
+    if (insertError) {
+      console.error('Error inserting alternatives:', insertError)
+    } else {
+      console.log(`Successfully saved ${alternativeRecords.length} alternatives`)
+    }
+  } else {
+    console.log('No alternatives found for this product')
   }
 
   // Email alerts removed - price changes will show in UI
