@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import { cache, cacheKeys } from '../cache'
 
 export interface AlternativeVendor {
   retailer: string
@@ -12,7 +13,17 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-export async function searchAlternativeVendors(productName: string, currentUrl: string): Promise<AlternativeVendor[]> {
+export async function searchAlternativeVendors(productName: string, currentUrl: string, useCache: boolean = true): Promise<AlternativeVendor[]> {
+  // Check cache first (1 hour TTL for alternative vendors)
+  if (useCache) {
+    const cached = cache.get<AlternativeVendor[]>(cacheKeys.alternatives(productName, currentUrl))
+    if (cached) {
+      console.log(`[Cache HIT] Alternative vendors for: ${productName}`)
+      return cached
+    }
+  }
+
+  console.log(`[Cache MISS] Searching alternative vendors for: ${productName}`)
   const alternatives: AlternativeVendor[] = []
 
   try {
@@ -118,7 +129,15 @@ export async function searchAlternativeVendors(productName: string, currentUrl: 
     // Remove duplicates and sort by price
     const uniqueAlternatives = removeDuplicates(alternatives)
     console.log(`Total unique alternatives found: ${uniqueAlternatives.length}`)
-    return uniqueAlternatives.sort((a, b) => a.price - b.price)
+    const sortedAlternatives = uniqueAlternatives.sort((a, b) => a.price - b.price)
+
+    // Cache the results (1 hour TTL)
+    if (useCache && sortedAlternatives.length > 0) {
+      cache.set(cacheKeys.alternatives(productName, currentUrl), sortedAlternatives, 1000 * 60 * 60)
+      console.log(`[Cache SET] Cached ${sortedAlternatives.length} alternative vendors for: ${productName}`)
+    }
+
+    return sortedAlternatives
 
   } catch (error) {
     console.error('Error searching alternative vendors:', error)

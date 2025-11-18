@@ -1,5 +1,6 @@
 import axios from 'axios'
 import * as cheerio from 'cheerio'
+import { cache, cacheKeys } from '../cache'
 
 export interface PriceData {
   price: number | null
@@ -8,7 +9,18 @@ export interface PriceData {
   title?: string
 }
 
-export async function scrapePrice(url: string): Promise<PriceData> {
+export async function scrapePrice(url: string, useCache: boolean = true): Promise<PriceData> {
+  // Check cache first (30 min TTL to avoid excessive scraping)
+  if (useCache) {
+    const cached = cache.get<PriceData>(cacheKeys.priceData(url))
+    if (cached) {
+      console.log(`[Cache HIT] Price data for: ${url}`)
+      return cached
+    }
+  }
+
+  console.log(`[Cache MISS] Scraping price for: ${url}`)
+
   try {
     // Use ScraperAPI if available, otherwise fall back to direct scraping
     const scraperApiKey = process.env.SCRAPER_API_KEY
@@ -28,33 +40,40 @@ export async function scrapePrice(url: string): Promise<PriceData> {
     const $ = cheerio.load(response.data)
     const hostname = new URL(url).hostname.toLowerCase()
 
+    let result: PriceData
+
     // Amazon
     if (hostname.includes('amazon.com')) {
-      return scrapeAmazon($)
+      result = scrapeAmazon($)
     }
-
     // Best Buy
-    if (hostname.includes('bestbuy.com')) {
-      return scrapeBestBuy($)
+    else if (hostname.includes('bestbuy.com')) {
+      result = scrapeBestBuy($)
     }
-
     // Newegg
-    if (hostname.includes('newegg.com')) {
-      return scrapeNewegg($)
+    else if (hostname.includes('newegg.com')) {
+      result = scrapeNewegg($)
     }
-
     // B&H Photo
-    if (hostname.includes('bhphotovideo.com')) {
-      return scrapeBH($)
+    else if (hostname.includes('bhphotovideo.com')) {
+      result = scrapeBH($)
     }
-
     // Microcenter
-    if (hostname.includes('microcenter.com')) {
-      return scrapeMicrocenter($)
+    else if (hostname.includes('microcenter.com')) {
+      result = scrapeMicrocenter($)
+    }
+    // Generic fallback
+    else {
+      result = scrapeGeneric($)
     }
 
-    // Generic fallback
-    return scrapeGeneric($)
+    // Cache the result (30 minutes TTL)
+    if (useCache && result.price !== null) {
+      cache.set(cacheKeys.priceData(url), result, 1000 * 60 * 30)
+      console.log(`[Cache SET] Cached price data for: ${url}`)
+    }
+
+    return result
 
   } catch (error) {
     console.error('Error scraping price:', error)

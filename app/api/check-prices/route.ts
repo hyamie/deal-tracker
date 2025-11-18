@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { scrapePrice } from '@/lib/scrapers/price-scraper'
 import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
 import type { Product, ProductUpdate, ProductCheckResult, AlternativeVendor } from '@/lib/types'
+import { parallelLimit, delay } from '@/lib/parallel'
 
 export async function POST(request: NextRequest) {
   try {
@@ -138,23 +139,24 @@ async function checkAllProducts(userEmail: string) {
 
   if (error) throw error
 
-  const results = []
-
-  for (const product of products) {
+  // Use parallel processing with concurrency limit (3 simultaneous requests)
+  const tasks = products.map(product => async () => {
     try {
       const result = await checkSingleProduct(product.id, userEmail)
-      results.push(result)
-
-      // Add delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Small delay between checks to avoid overwhelming APIs
+      await delay(500)
+      return result
     } catch (error) {
       console.error(`Error checking product ${product.id}:`, error)
-      results.push({
+      return {
         product,
         error: 'Failed to check price',
-      })
+      }
     }
-  }
+  })
+
+  // Execute tasks in parallel with concurrency limit of 3
+  const results = await parallelLimit(tasks, 3)
 
   return results
 }
