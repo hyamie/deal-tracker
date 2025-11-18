@@ -7,6 +7,11 @@ export interface AlternativeVendor {
   url: string
 }
 
+// Helper to add delay between requests
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 export async function searchAlternativeVendors(productName: string, currentUrl: string): Promise<AlternativeVendor[]> {
   const alternatives: AlternativeVendor[] = []
 
@@ -15,48 +20,104 @@ export async function searchAlternativeVendors(productName: string, currentUrl: 
     const searchQuery = cleanProductName(productName)
     const currentHostname = new URL(currentUrl).hostname
 
-    // Search all sources in parallel for better performance
-    const [
-      googleResults,
-      slickdealsResults,
-      dealnewsResults,
-      camelResults,
-      priceGrabberResults,
-      brickseekResults,
-      pcPartPickerResults,
-      techBargainsResults,
-      walmartResults,
-      targetResults,
-      ebayResults,
-    ] = await Promise.allSettled([
-      searchGoogleShopping(searchQuery, currentUrl),
-      searchSlickdeals(searchQuery),
-      searchDealNews(searchQuery),
-      searchCamelCamelCamel(searchQuery, currentHostname),
-      searchPriceGrabber(searchQuery),
-      searchBrickSeek(searchQuery),
-      searchPCPartPicker(searchQuery),
-      searchTechBargains(searchQuery),
-      searchWalmart(searchQuery),
-      searchTarget(searchQuery),
-      searchEbay(searchQuery),
-    ])
+    // Priority sources - most likely to have results and reliable
+    const prioritySources = [
+      { name: 'eBay', fn: () => searchEbay(searchQuery) },
+      { name: 'Walmart', fn: () => searchWalmart(searchQuery) },
+      { name: 'Target', fn: () => searchTarget(searchQuery) },
+    ]
 
-    // Collect all successful results
-    if (googleResults.status === 'fulfilled') alternatives.push(...googleResults.value)
-    if (slickdealsResults.status === 'fulfilled') alternatives.push(...slickdealsResults.value)
-    if (dealnewsResults.status === 'fulfilled') alternatives.push(...dealnewsResults.value)
-    if (camelResults.status === 'fulfilled') alternatives.push(...camelResults.value)
-    if (priceGrabberResults.status === 'fulfilled') alternatives.push(...priceGrabberResults.value)
-    if (brickseekResults.status === 'fulfilled') alternatives.push(...brickseekResults.value)
-    if (pcPartPickerResults.status === 'fulfilled') alternatives.push(...pcPartPickerResults.value)
-    if (techBargainsResults.status === 'fulfilled') alternatives.push(...techBargainsResults.value)
-    if (walmartResults.status === 'fulfilled') alternatives.push(...walmartResults.value)
-    if (targetResults.status === 'fulfilled') alternatives.push(...targetResults.value)
-    if (ebayResults.status === 'fulfilled') alternatives.push(...ebayResults.value)
+    // Secondary sources - good but may have more restrictions
+    const secondarySources = [
+      { name: 'Google Shopping', fn: () => searchGoogleShopping(searchQuery, currentUrl) },
+      { name: 'Slickdeals', fn: () => searchSlickdeals(searchQuery) },
+      { name: 'DealNews', fn: () => searchDealNews(searchQuery) },
+    ]
+
+    // Specialized sources - only for specific product types
+    const specializedSources = [
+      { name: 'CamelCamelCamel', fn: () => searchCamelCamelCamel(searchQuery, currentHostname), condition: currentHostname.includes('amazon.com') },
+      { name: 'PCPartPicker', fn: () => searchPCPartPicker(searchQuery), condition: searchQuery.toLowerCase().includes('cpu') || searchQuery.toLowerCase().includes('gpu') || searchQuery.toLowerCase().includes('amd') || searchQuery.toLowerCase().includes('intel') || searchQuery.toLowerCase().includes('nvidia') },
+      { name: 'TechBargains', fn: () => searchTechBargains(searchQuery) },
+      { name: 'PriceGrabber', fn: () => searchPriceGrabber(searchQuery) },
+      { name: 'BrickSeek', fn: () => searchBrickSeek(searchQuery) },
+    ]
+
+    console.log('Starting sequential vendor search to avoid rate limits...')
+
+    // Search priority sources first with delays
+    for (const source of prioritySources) {
+      try {
+        console.log(`Searching ${source.name}...`)
+        const results = await source.fn()
+        if (results.length > 0) {
+          console.log(`${source.name}: Found ${results.length} results`)
+          alternatives.push(...results)
+        }
+        // Wait 2 seconds between requests to avoid rate limiting
+        await delay(2000)
+      } catch (error) {
+        console.error(`Error searching ${source.name}:`, error instanceof Error ? error.message : error)
+      }
+    }
+
+    // If we found good results, stop here to save API calls
+    if (alternatives.length >= 3) {
+      console.log(`Found ${alternatives.length} alternatives from priority sources, stopping search`)
+      const uniqueAlternatives = removeDuplicates(alternatives)
+      return uniqueAlternatives.sort((a, b) => a.price - b.price)
+    }
+
+    // Search secondary sources with delays
+    for (const source of secondarySources) {
+      try {
+        console.log(`Searching ${source.name}...`)
+        const results = await source.fn()
+        if (results.length > 0) {
+          console.log(`${source.name}: Found ${results.length} results`)
+          alternatives.push(...results)
+        }
+        await delay(2000)
+      } catch (error) {
+        console.error(`Error searching ${source.name}:`, error instanceof Error ? error.message : error)
+      }
+
+      // Stop if we have enough results
+      if (alternatives.length >= 5) {
+        console.log(`Found ${alternatives.length} alternatives, stopping search`)
+        break
+      }
+    }
+
+    // Search specialized sources if applicable
+    for (const source of specializedSources) {
+      // Skip if condition exists and is not met
+      if (source.condition !== undefined && !source.condition) {
+        continue
+      }
+
+      try {
+        console.log(`Searching ${source.name}...`)
+        const results = await source.fn()
+        if (results.length > 0) {
+          console.log(`${source.name}: Found ${results.length} results`)
+          alternatives.push(...results)
+        }
+        await delay(2000)
+      } catch (error) {
+        console.error(`Error searching ${source.name}:`, error instanceof Error ? error.message : error)
+      }
+
+      // Stop if we have enough results
+      if (alternatives.length >= 8) {
+        console.log(`Found ${alternatives.length} alternatives, stopping search`)
+        break
+      }
+    }
 
     // Remove duplicates and sort by price
     const uniqueAlternatives = removeDuplicates(alternatives)
+    console.log(`Total unique alternatives found: ${uniqueAlternatives.length}`)
     return uniqueAlternatives.sort((a, b) => a.price - b.price)
 
   } catch (error) {
@@ -90,7 +151,7 @@ async function searchGoogleShopping(query: string, excludeUrl: string): Promise<
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000, // Reduced from 30s
     })
 
     const $ = cheerio.load(response.data)
@@ -131,7 +192,7 @@ async function searchSlickdeals(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -172,7 +233,7 @@ async function searchDealNews(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -230,7 +291,7 @@ async function searchCamelCamelCamel(query: string, currentHostname: string): Pr
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -269,7 +330,7 @@ async function searchPriceGrabber(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -309,7 +370,7 @@ async function searchBrickSeek(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -343,7 +404,7 @@ async function searchPCPartPicker(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -383,7 +444,7 @@ async function searchTechBargains(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -423,7 +484,7 @@ async function searchWalmart(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -465,7 +526,7 @@ async function searchTarget(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
@@ -507,7 +568,7 @@ async function searchEbay(query: string): Promise<AlternativeVendor[]> {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
-      timeout: 30000,
+      timeout: 20000,
     })
 
     const $ = cheerio.load(response.data)
