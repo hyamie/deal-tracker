@@ -7,7 +7,7 @@ import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
 // GET all products
 export async function GET(request: NextRequest) {
   try {
-    const userEmail = request.headers.get('x-user-email') || process.env.USER_EMAIL
+    const userEmail = request.headers.get('x-user-email') || process.env.NEXT_PUBLIC_USER_EMAIL
 
     if (!userEmail) {
       return NextResponse.json({ error: 'User email required' }, { status: 400 })
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { name, url, targetPrice } = body
-    const userEmail = request.headers.get('x-user-email') || process.env.USER_EMAIL
+    const userEmail = request.headers.get('x-user-email') || process.env.NEXT_PUBLIC_USER_EMAIL
 
     if (!userEmail) {
       return NextResponse.json({ error: 'User email required' }, { status: 400 })
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ product })
   } catch (error) {
     console.error('Error creating product:', error)
+    return NextResponse.json({ error: 'Failed to create product', details: error.message }
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
   }
 }
