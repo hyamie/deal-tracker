@@ -117,26 +117,33 @@ async function searchGoogleShoppingSerpApi(
     }
 
     shoppingResults.forEach((item: any, index: number) => {
+      // Get the correct field names from SerpApi response
+      const price = item.extracted_price || item.price
+      const source = item.source || 'Unknown Retailer'
+      const link = item.product_link || item.link
+
+      // Skip if no price or link
+      if (!price || !link) {
+        console.log(`[SerpApi] Skipping result ${index + 1}: Missing price or link`)
+        return
+      }
+
       // Skip if it's from the same retailer
-      if (item.link && item.link.includes(excludeHostname)) {
+      if (link.includes(excludeHostname)) {
         console.log(`[SerpApi] Skipping result ${index + 1}: Same retailer (${excludeHostname})`)
         return
       }
 
-      const price = item.price || item.extracted_price
-      const source = item.source || 'Unknown Retailer'
-      const link = item.link
-
-      if (price && link) {
-        const priceNum = typeof price === 'number' ? price : parseFloat(price.toString().replace(/[^0-9.]/g, ''))
-        if (!isNaN(priceNum)) {
-          results.push({
-            retailer: source,
-            price: priceNum,
-            url: link,
-          })
-          console.log(`[SerpApi] Result ${results.length}: ${source} - $${priceNum.toFixed(2)}`)
-        }
+      const priceNum = typeof price === 'number' ? price : parseFloat(price.toString().replace(/[^0-9.]/g, ''))
+      if (!isNaN(priceNum) && priceNum > 0) {
+        results.push({
+          retailer: source,
+          price: priceNum,
+          url: link,
+        })
+        console.log(`[SerpApi] Result ${results.length}: ${source} - $${priceNum.toFixed(2)}`)
+      } else {
+        console.log(`[SerpApi] Skipping result ${index + 1}: Invalid price (${price})`)
       }
     })
 
