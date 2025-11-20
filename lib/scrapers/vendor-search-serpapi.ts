@@ -92,12 +92,14 @@ async function searchGoogleShoppingSerpApi(
   apiKey: string
 ): Promise<AlternativeVendor[]> {
   try {
+    console.log(`[SerpApi] Searching Google Shopping for: "${query}"`)
+
     const response = await axios.get('https://serpapi.com/search', {
       params: {
         engine: 'google_shopping',
         q: query,
         api_key: apiKey,
-        num: 10, // Get top 10 results
+        num: 20, // Get more results (increased from 10)
       },
       timeout: 15000,
     })
@@ -105,9 +107,19 @@ async function searchGoogleShoppingSerpApi(
     const results: AlternativeVendor[] = []
     const shoppingResults = response.data.shopping_results || []
 
-    shoppingResults.forEach((item: any) => {
+    console.log(`[SerpApi] Raw response: ${shoppingResults.length} shopping results returned`)
+
+    if (shoppingResults.length === 0) {
+      console.log(`[SerpApi] No results found. This could mean:`)
+      console.log(`  - Product is niche/not widely sold`)
+      console.log(`  - Search query too specific`)
+      console.log(`  - Try a shorter/simpler search term`)
+    }
+
+    shoppingResults.forEach((item: any, index: number) => {
       // Skip if it's from the same retailer
       if (item.link && item.link.includes(excludeHostname)) {
+        console.log(`[SerpApi] Skipping result ${index + 1}: Same retailer (${excludeHostname})`)
         return
       }
 
@@ -116,22 +128,28 @@ async function searchGoogleShoppingSerpApi(
       const link = item.link
 
       if (price && link) {
-        results.push({
-          retailer: source,
-          price: typeof price === 'number' ? price : parseFloat(price.toString().replace(/[^0-9.]/g, '')),
-          url: link,
-        })
+        const priceNum = typeof price === 'number' ? price : parseFloat(price.toString().replace(/[^0-9.]/g, ''))
+        if (!isNaN(priceNum)) {
+          results.push({
+            retailer: source,
+            price: priceNum,
+            url: link,
+          })
+          console.log(`[SerpApi] Result ${results.length}: ${source} - $${priceNum.toFixed(2)}`)
+        }
       }
     })
 
-    console.log(`SerpApi: Found ${results.length} results`)
-    return results.slice(0, 5) // Limit to top 5
+    console.log(`[SerpApi] Successfully parsed ${results.length} valid alternatives`)
+    return results.slice(0, 10) // Return more results (increased from 5)
 
   } catch (error: any) {
     if (error.response?.status === 429) {
-      console.error('SerpApi rate limit exceeded - you may have used your 100 free searches this month')
+      console.error('[SerpApi] ❌ Rate limit exceeded - you may have used your 100 free searches this month')
+    } else if (error.response?.data) {
+      console.error('[SerpApi] ❌ API Error:', JSON.stringify(error.response.data, null, 2))
     } else {
-      console.error('Error searching Google Shopping via SerpApi:', error.message)
+      console.error('[SerpApi] ❌ Error:', error.message)
     }
     return []
   }
@@ -143,6 +161,7 @@ async function searchGoogleShoppingSerpApi(
  */
 async function searchEbay(query: string): Promise<AlternativeVendor[]> {
   try {
+    console.log(`[eBay] Searching for: "${query}"`)
     const searchUrl = `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}&_sop=15&LH_BIN=1` // Buy It Now only, sorted by price
 
     // Use ScraperAPI if available, otherwise direct request
@@ -151,6 +170,8 @@ async function searchEbay(query: string): Promise<AlternativeVendor[]> {
       ? `https://api.scraperapi.com?api_key=${scraperApiKey}&url=${encodeURIComponent(searchUrl)}&render=true`
       : searchUrl
 
+    console.log(`[eBay] Using ${scraperApiKey ? 'ScraperAPI' : 'direct request'}`)
+
     const response = await axios.get(finalUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -158,62 +179,61 @@ async function searchEbay(query: string): Promise<AlternativeVendor[]> {
       timeout: 20000,
     })
 
-    // Try to parse JSON-LD structured data first (more reliable)
-    const jsonLdMatch = response.data.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)
     const results: AlternativeVendor[] = []
 
-    if (jsonLdMatch) {
-      jsonLdMatch.forEach((script: string) => {
-        try {
-          const json = JSON.parse(script.replace(/<script[^>]*>|<\/script>/g, ''))
-          if (json['@type'] === 'Product' && json.offers) {
-            const price = parseFloat(json.offers.price)
-            const url = json.offers.url
-            if (!isNaN(price) && url) {
-              results.push({
-                retailer: 'eBay',
-                price,
-                url,
-              })
-            }
-          }
-        } catch (e) {
-          // Skip invalid JSON
-        }
-      })
-    }
+    // Load the HTML with cheerio
+    const cheerio = await import('cheerio')
+    const $ = cheerio.load(response.data)
 
-    // Fallback to HTML parsing if JSON-LD didn't work
+    console.log(`[eBay] Page loaded, parsing results...`)
+
+    // Parse eBay listings
+    let itemCount = 0
+    $('.s-item').each((index, element) => {
+      // Skip the first item (usually a placeholder/ad)
+      if (index === 0) return
+      if (results.length >= 10) return // Limit to 10 results
+
+      const $elem = $(element)
+      const priceText = $elem.find('.s-item__price').first().text()
+      const url = $elem.find('.s-item__link').attr('href')
+      const title = $elem.find('.s-item__title').text()
+
+      itemCount++
+
+      if (priceText && url) {
+        // Handle price ranges (e.g., "$10 to $20") - take the lower price
+        const match = priceText.match(/\$?([\d,]+\.?\d*)/)
+        if (match) {
+          const price = parseFloat(match[1].replace(/,/g, ''))
+          if (!isNaN(price) && price > 0) {
+            results.push({
+              retailer: 'eBay',
+              price,
+              url: url.split('?')[0], // Remove tracking parameters
+            })
+            console.log(`[eBay] Result ${results.length}: $${price.toFixed(2)} - ${title.substring(0, 50)}...`)
+          }
+        }
+      }
+    })
+
+    console.log(`[eBay] Parsed ${itemCount} items, found ${results.length} valid results`)
+
     if (results.length === 0) {
-      const cheerio = await import('cheerio')
-      const $ = cheerio.load(response.data)
-
-      $('.s-item').slice(0, 5).each((_, element) => {
-        const $elem = $(element)
-        const priceText = $elem.find('.s-item__price').first().text()
-        const url = $elem.find('.s-item__link').attr('href')
-
-        if (priceText && url) {
-          const match = priceText.match(/[\d,]+\.?\d*/)
-          if (match) {
-            const price = parseFloat(match[0].replace(/,/g, ''))
-            if (!isNaN(price)) {
-              results.push({
-                retailer: 'eBay',
-                price,
-                url,
-              })
-            }
-          }
-        }
-      })
+      console.log(`[eBay] No results found. This could mean:`)
+      console.log(`  - Product is very niche or not sold on eBay`)
+      console.log(`  - Page structure changed (scraper needs update)`)
+      console.log(`  - eBay blocked the request`)
     }
 
-    console.log(`eBay: Found ${results.length} results`)
-    return results.slice(0, 5)
+    return results.slice(0, 10)
 
-  } catch (error) {
-    console.error('Error searching eBay:', error)
+  } catch (error: any) {
+    console.error('[eBay] ❌ Error:', error.message)
+    if (error.response?.status) {
+      console.error(`[eBay] HTTP Status: ${error.response.status}`)
+    }
     return []
   }
 }
