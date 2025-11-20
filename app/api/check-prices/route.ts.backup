@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { scrapePrice } from '@/lib/scrapers/price-scraper'
-import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search-serpapi'
+import { searchAlternativeVendors } from '@/lib/scrapers/vendor-search'
 import type { Product, ProductUpdate, ProductCheckResult, AlternativeVendor } from '@/lib/types'
 import { parallelLimit, delay } from '@/lib/parallel'
 
