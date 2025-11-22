@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { Product, AlternativeDeal } from '@/lib/types'
+import type { Product, AlternativeDeal, PriceHistory } from '@/lib/types'
 
 interface ProductCardProps {
   product: Product
@@ -17,6 +17,8 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
   const [isChecking, setIsChecking] = useState(false)
   const [alternatives, setAlternatives] = useState<AlternativeDeal[]>([])
   const [showAlternatives, setShowAlternatives] = useState(false)
+  const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
   const handleSaveTarget = () => {
     const price = targetPrice ? parseFloat(targetPrice) : null
@@ -26,6 +28,7 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
 
   useEffect(() => {
     fetchAlternatives()
+    fetchPriceHistory()
   }, [product.id])
 
   const fetchAlternatives = async () => {
@@ -41,12 +44,25 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
     }
   }
 
+  const fetchPriceHistory = async () => {
+    try {
+      const response = await fetch(`/api/price-history?productId=${product.id}`)
+      const data = await response.json()
+      if (data.history) {
+        setPriceHistory(data.history)
+      }
+    } catch (error) {
+      console.error('Error fetching price history:', error)
+    }
+  }
+
   const handleCheck = async () => {
     setIsChecking(true)
     await onCheck(product.id)
     setIsChecking(false)
-    // Refresh alternatives after checking
+    // Refresh alternatives and price history after checking
     await fetchAlternatives()
+    await fetchPriceHistory()
   }
 
   const priceStatus = () => {
@@ -154,6 +170,71 @@ export default function ProductCard({ product, onDelete, onCheck, onUpdate }: Pr
           {status === 'good' && (
             <div className="mt-3 bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded">
               ✅ Target price reached!
+            </div>
+          )}
+
+          {/* Price History Section */}
+          {priceHistory.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-2"
+              >
+                {showHistory ? '▼' : '▶'}
+                📊 Price History ({priceHistory.length} checks)
+                {priceHistory.length >= 2 && priceHistory[0].price < priceHistory[1].price && (
+                  <span className="text-green-600 font-bold">📉 Price dropped!</span>
+                )}
+                {priceHistory.length >= 2 && priceHistory[0].price > priceHistory[1].price && (
+                  <span className="text-red-600 font-bold">📈 Price increased</span>
+                )}
+              </button>
+
+              {showHistory && (
+                <div className="mt-3">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {priceHistory.map((entry, index) => {
+                        const prevPrice = index < priceHistory.length - 1 ? priceHistory[index + 1].price : null
+                        const priceDiff = prevPrice ? entry.price - prevPrice : 0
+                        const isLowest = entry.price === Math.min(...priceHistory.map(h => h.price))
+                        
+                        return (
+                          <div
+                            key={entry.id}
+                            className={`flex items-center justify-between p-2 rounded ${
+                              isLowest ? 'bg-green-100 border border-green-300' : 'bg-white border border-gray-200'
+                            }`}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-bold text-purple-600">
+                                  ${entry.price.toFixed(2)}
+                                </span>
+                                {isLowest && (
+                                  <span className="text-xs bg-green-500 text-white px-2 py-1 rounded font-bold">
+                                    LOWEST
+                                  </span>
+                                )}
+                                {priceDiff !== 0 && (
+                                  <span className={`text-xs font-semibold ${
+                                    priceDiff < 0 ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {priceDiff < 0 ? '↓' : '↑'} ${Math.abs(priceDiff).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {new Date(entry.checked_at).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
