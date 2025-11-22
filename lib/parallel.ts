@@ -15,23 +15,23 @@ export async function parallelLimit<T>(
   concurrency: number = 3
 ): Promise<T[]> {
   const results: T[] = []
-  const executing: Promise<void>[] = []
+  const executing: Set<Promise<void>> = new Set()
 
   for (const [index, task] of tasks.entries()) {
     const promise = task().then(result => {
       results[index] = result
+    }).finally(() => {
+      executing.delete(promise)
     })
 
-    executing.push(promise)
+    executing.add(promise)
 
-    if (executing.length >= concurrency) {
+    if (executing.size >= concurrency) {
       await Promise.race(executing)
-      // Remove completed promises
-      executing.splice(0, executing.findIndex(p => p === promise) + 1)
     }
   }
 
-  await Promise.all(executing)
+  await Promise.all(Array.from(executing))
   return results
 }
 
